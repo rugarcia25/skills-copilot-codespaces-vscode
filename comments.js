@@ -1,51 +1,68 @@
-// Create simple web application that responds to requests to /comments and
-// /comments/new. The /comments/new path should accept a POST request and add
-// the submitted comment to the comment list. The /comments path should
-// display all of the submitted comments. Use the following HTML as a starting
-// point for your application:
+// Create web server for comments
 
-var http = require('http');
-var qs = require('querystring');
+// Imports
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
 
-var comments = [];
+// Create express app
+const app = express();
 
-function renderForm(comment) {
-  var html = '<!doctype html>';
-  html += '<html><head><title>Guest Book</title></head>';
-  html += '<body><h1>Guest Book</h1>';
-  html += '<form method="post" action="/comments/new">';
-  html += '<input type="text" name="comment">';
-  html += '<input type="submit" value="Submit">';
-  html += '</form>';
-  html += '<h2>Comments</h2>';
-  html += '<ul>';
-  comments.forEach(function(comment) {
-    html += '<li>' + comment + '</li>';
-  });
-  html += '</ul>';
-  html += '</body></html>';
-  return html;
-}
+// Use cors
+app.use(cors());
 
-http.createServer(function(req, res) {
-  if (req.method === 'POST' && req.url === '/comments/new') {
-    var body = '';
-    req.on('data', function(data) {
-      body += data;
+// Use body parser
+app.use(bodyParser.json());
+
+// Set port
+const port = 3001;
+
+// Get comments
+app.get('/api/comments', (req, res) => {
+    // Read comments from file
+    fs.readFile(path.join(__dirname, 'comments.json'), (err, data) => {
+        if (err) {
+            res.status(500).send('Error reading comments file');
+        } else {
+            // Parse comments
+            const comments = JSON.parse(data);
+
+            // Send comments
+            res.send(comments);
+        }
     });
-    req.on('end', function() {
-      var comment = qs.parse(body).comment;
-      comments.push(comment);
-      res.writeHead(302, { 'Location': '/comments' });
-      res.end();
+});
+
+// Add comment
+app.post('/api/comments', (req, res) => {
+    // Get comment from request body
+    const comment = req.body;
+
+    // Read comments from file
+    fs.readFile(path.join(__dirname, 'comments.json'), (err, data) => {
+        if (err) {
+            res.status(500).send('Error reading comments file');
+        } else {
+            // Parse comments
+            const comments = JSON.parse(data);
+
+            // Add comment to comments
+            comments.push(comment);
+
+            // Write comments to file
+            fs.writeFile(path.join(__dirname, 'comments.json'), JSON.stringify(comments), (err) => {
+                if (err) {
+                    res.status(500).send('Error writing comments file');
+                } else {
+                    // Send comment
+                    res.send(comment);
+                }
+            });
+        }
     });
-  } else if (req.url === '/comments') {
-    var html = renderForm();
-    res.setHeader('Content-Type', 'text/html');
-    res.statusCode = 200;
-    res.end(html);
-  } else {
-    res.statusCode = 404;
-    res.end();
-  }
-}).listen(3000); server
+});
+
+// Start server
+app.listen(port, () => console.log(`Server listening on port ${port}`));
